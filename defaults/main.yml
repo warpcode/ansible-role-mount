@@ -1,0 +1,10 @@
+---
+mount_automounts:
+  - mount: /mnt/gsuite
+    src: "/opt/rclone/bin/rclone_mount#gsuite:"
+    type: fuse
+    options: auto,config=/etc/rclone.conf,allow-other,default-permissions,read-only,max-read-ahead=16M
+    user: root
+    group: root
+
+mount_fstab: []

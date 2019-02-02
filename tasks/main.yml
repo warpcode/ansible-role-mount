@@ -1,0 +1,60 @@
+---
+- name: Setup systemd Service for mountpoints
+  become: yes
+  template:
+    src: systemd_mount.j2
+    dest: "/etc/systemd/system/{{ item.mount| regex_replace('^\\/|\\/$', '') | replace('/', '-') }}.mount"
+    mode: 0755
+    owner: root
+    group: root
+  with_items: "{{ mount_automounts }}"
+
+- name: Setup systemd Service for automount
+  become: yes
+  template:
+    src: systemd_automount.j2
+    dest: "/etc/systemd/system/{{ item.mount| regex_replace('^\\/|\\/$', '') | replace('/', '-') }}.automount"
+    mode: 0755
+    owner: root
+    group: root
+  with_items: "{{ mount_automounts }}"
+
+- name: reload systemd
+  command: systemctl daemon-reload
+
+- name: Ensure automount service is started
+  become: yes
+  systemd:
+    name: "{{ item.mount| regex_replace('^\\/|\\/$', '') | replace('/', '-') }}.automount"
+    state: started
+    enabled: True
+  with_items: "{{ mount_automounts }}"
+
+- name: Ensure mount service is disabled
+  become: yes
+  systemd:
+    name: "{{ item.mount| regex_replace('^\\/|\\/$', '') | replace('/', '-') }}.mount"
+    enabled: False
+  with_items: "{{ mount_automounts }}"
+
+- name: Ensure mount dirs exist for fstab
+  become: yes
+  file:
+    path: "{{ item.mount }}"
+    state: directory
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode | default('u=rwx,g=rx,o=rx') }}"
+  with_items: "{{ mount_fstab }}"
+
+- name: Create fstab entries
+  become: yes
+  mount:
+    name: "{{ item.mount }}"
+    src: "{{ item.src }}"
+    fstype: "{{ item.type }}"
+    passno: "{{ item.passno|default(omit) }}"
+    dump: "{{ item.dump|default(omit) }}"
+    opts: "{{ item.options|default('') }}"
+    state: "{{ item.state | default('present') }}"
+  with_items: "{{ mount_fstab }}"
