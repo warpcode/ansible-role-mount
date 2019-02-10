@@ -51,10 +51,10 @@
   become: yes
   mount:
     name: "{{ item.mount }}"
-    src: "{{ item.src }}"
-    fstype: "{{ item.type }}"
-    passno: "{{ item.passno|default(omit) }}"
-    dump: "{{ item.dump|default(omit) }}"
-    opts: "{{ item.options|default('') }}"
+    src: "{{ item.device }}"
+    fstype: "{{ item.fstype }}"
+    passno: "{{ item.passno | default(omit) }}"
+    dump: "{{ item.dump | default(omit) }}"
+    opts: "{{ item.opts | default('') }}"
     state: "{{ item.state | default('present') }}"
   with_items: "{{ mount_fstab }}"
