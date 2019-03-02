@@ -42,12 +42,12 @@
   file:
     path: "{{ item.mount }}"
     state: directory
-    owner: "{{ item.owner | default('root') }}"
-    group: "{{ item.group | default('root') }}"
-    mode: "{{ item.mode | default('u=rwx,g=rx,o=rx') }}"
+    owner: "{{ item.owner | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+    mode: "{{ item.mode | default(omit) }}"
   with_items: "{{ mount_fstab }}"
 
-- name: Create fstab entries
+- name: Create fstab entries for devices
   become: yes
   mount:
     name: "{{ item.mount }}"
@@ -57,4 +57,29 @@
     dump: "{{ item.dump | default(omit) }}"
     opts: "{{ item.opts | default('') }}"
     state: "{{ item.state | default('present') }}"
+  when: item.device_is_dir is not defined or item.device_is_dir == False
+  with_items: "{{ mount_fstab }}"
+
+- name: Ensure device directories exist
+  become: yes
+  file:
+    path: "{{ item.device }}"
+    state: directory
+    owner: "{{ item.owner | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+    mode: "{{ item.mode | default(omit) }}"
+  when: item.device_is_dir | default(False)
+  with_items: "{{ mount_fstab }}"
+
+- name: Create fstab entries for devices as directories
+  become: yes
+  mount:
+    name: "{{ item.mount }}"
+    src: "{{ item.device }}"
+    fstype: "{{ item.fstype }}"
+    passno: "{{ item.passno | default(omit) }}"
+    dump: "{{ item.dump | default(omit) }}"
+    opts: "{{ item.opts | default('') }}"
+    state: "{{ item.state | default('present') }}"
+  when: item.device_is_dir | default(False)
   with_items: "{{ mount_fstab }}"
