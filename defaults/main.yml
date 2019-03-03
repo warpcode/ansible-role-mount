@@ -1,3 +1,5 @@
 ---
 mount_automounts: []
 mount_fstab: []
+mount_cifs_cred_path: /root/.cifs_credentials
+mount_cifs_credentials: []

@@ -1,4 +1,24 @@
 ---
+- name: Create cifs credentials path
+  become: yes
+  file:
+    path: "{{ mount_cifs_cred_path }}"
+    state: directory
+
+- name: Create cifs credentials files
+  become: yes
+  template:
+    src: cifs_credentials.j2
+    dest: "{{ mount_cifs_cred_path }}/{{ item.name }}.cred"
+    mode: 0755
+    owner: root
+    group: root
+  with_items: "{{ mount_cifs_credentials }}"
+
+- name: Install cifs utils
+  package:
+    name: cifs-utils
+
 - name: Setup systemd Service for mountpoints
   become: yes
   template:

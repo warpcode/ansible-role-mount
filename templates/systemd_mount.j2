@@ -6,8 +6,8 @@ After=network.target multi-user.target
 What={{ item.src }}
 Where={{ item.mount }}
 Type={{ item.fstype }}
-{% if item.options is defined %}
-Options={{ item.options }}
+{% if item.opts is defined %}
+Options={{ item.opts }}
 {% endif %}
 
 [Install]
