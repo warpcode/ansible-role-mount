@@ -50,11 +50,12 @@
     enabled: True
   with_items: "{{ mount_automounts }}"
 
-- name: Ensure mount service is disabled
+- name: Ensure mount service is enabled and started
   become: yes
   systemd:
     name: "{{ item.mount| regex_replace('^\\/|\\/$', '') | replace('/', '-') }}.mount"
-    enabled: False
+    state: started
+    enabled: True
   with_items: "{{ mount_automounts }}"
 
 - name: Ensure mount dirs exist for fstab
