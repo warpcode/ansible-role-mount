@@ -4,6 +4,7 @@ After=network.target multi-user.target
 
 [Automount]
 Where={{ item.mount }}
+TimeoutIdleSec={{ item.idle_timeout | default('0') }}
 
 [Install]
 WantedBy=default.target
