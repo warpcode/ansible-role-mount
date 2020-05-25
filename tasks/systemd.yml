@@ -1,0 +1,126 @@
+---
+- name: Escape mount service file name
+  command: systemd-escape -p --suffix="mount" "{{ item.where }}"
+  changed_when: false
+  register: mount_systemd_service_name
+
+- name: Escape automount service file name
+  command: systemd-escape -p --suffix="automount" "{{ item.where }}"
+  changed_when: false
+  register: mount_systemd_automount_service_name
+
+- name: Ensure mount dirs exist for fstab
+  become: yes
+  file:
+    path: "{{ item.where }}"
+    state: directory
+    owner: "{{ item.owner | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+    mode: "{{ item.mode | default('0755') }}"
+  when:
+    - item.where is defined
+    - item.state | default("started") != 'absent'
+
+- name: Setup systemd Service for mountpoints
+  become: yes
+  template:
+    src: systemd_mount.j2
+    dest: "/etc/systemd/system/{{ mount_systemd_service_name.stdout }}"
+    mode: "0640"
+    owner: root
+    group: root
+  when:
+    - item.state | default("started") != 'absent'
+
+- name: Load or Unload mount(s)
+  systemd:
+    daemon_reload: yes
+    name: "{{ mount_systemd_service_name.stdout }}"
+    enabled: "{{ item.enabled | default(true) }}"
+  when:
+    - item.state | default("started") != 'absent'
+
+
+# By default, the service should be stopped if state is not defined
+- name: Mount state block
+  block:
+    - name: Set the state of the mount
+      shell: >-
+        systemctl
+        {{ mount_systemd_mount_states[item.state] }}
+        {{ mount_systemd_service_name.stdout }}
+      args:
+        warn: no
+      when:
+        - item.state is defined
+        - mount_systemd_mount_states[item.state] is defined
+    - name: Set the state of the mount (stopping)
+      systemd:
+        name: "{{ mount_systemd_service_name.stdout }}"
+        state: "stopped"
+      when:
+        - item.state is not defined or item.state == 'stopped'
+  rescue:
+    - name: Set the state of the mount (fallback)
+      systemd:
+        name: "{{ mount_systemd_service_name.stdout }}"
+        state: "{{ item.state if item.state is defined and item.state != 'absent' else 'stopped' }}"
+      when:
+        - item.state | default("started") != 'absent'
+
+- name: Setup Automount
+  when:
+    - item.state | default("started") != 'absent'
+  block:
+    - name: Setup systemd Service for auto mountpoints
+      become: yes
+      template:
+        src: systemd_automount.j2
+        dest: "/etc/systemd/system/{{ mount_systemd_automount_service_name.stdout }}"
+        mode: "0640"
+        owner: root
+        group: root
+      when:
+        - item.automount_state | default("absent") != 'absent'
+
+    - name: Load or Unload automount(s)
+      systemd:
+        daemon_reload: yes
+        name: "{{ mount_systemd_automount_service_name.stdout }}"
+        enabled: "{{ item.automount_enabled | default(true) }}"
+      when:
+        - item.automount_state | default("absent") != 'absent'
+
+    - name: Set the state of the automount
+      systemd:
+        name: "{{ mount_systemd_automount_service_name.stdout }}"
+        state: "{{ item.automount_state if item.automount_state is defined and item.automount_state != 'absent' else 'stopped' }}"
+      when:
+        - item.automount_state | default("absent") != 'absent'
+
+# Reload if state is absent and the file previously existed
+- name: Unload automount(s)
+  systemd:
+    daemon_reload: yes
+    name: "{{ mount_systemd_automount_service_name.stdout }}"
+    enabled: false
+    no_block: yes
+  ignore_errors: yes
+  when:
+    - item.state | default("started") == 'absent' or item.automount_state | default("absent") == 'absent'
+  notify: Remove mount
+
+# Reload if state is absent and the file previously existed
+- name: Unload mount(s)
+  systemd:
+    daemon_reload: yes
+    name: "{{ mount_systemd_service_name.stdout }}"
+    enabled: false
+    no_block: yes
+  ignore_errors: yes
+  when:
+    - item.state | default("started") == 'absent'
+  notify: Remove mount
+
+
+

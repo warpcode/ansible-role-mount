@@ -1,10 +1,24 @@
 [Unit]
-Description=automount {{ item.mount }}
-After=network.target multi-user.target
+Description=automount {{ item.where }}
+{% for (key, value) in (item.automount_unit|default({})).iteritems() %}
+    {{- key }}={{ value }}
+{% endfor %}
+{% if item.require_network is defined and item.require_network %}
+Requires=network-online.target
+After=network-online.target
+{% endif %}
 
 [Automount]
-Where={{ item.mount }}
-TimeoutIdleSec={{ item.idle_timeout | default('0') }}
+What={{ item.what }}
+{% for (key, value) in (item.automount|default({})).iteritems() %}
+    {{- key }}={{ value }}
+{% endfor %}
 
 [Install]
+{% for (key, value) in (item.automount_install|default({})).iteritems() %}
+    {{- key }}={{ value }}
+{% endfor %}
+{% if item.automount_install is not defined or item.automount_install.WantedBy is not defined %}
 WantedBy=default.target
+{% endif %}
+

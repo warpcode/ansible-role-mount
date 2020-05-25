@@ -1,14 +1,27 @@
 [Unit]
-Description=mount {{ item.mount }}
-After=network.target multi-user.target
-
-[Mount]
-What={{ item.src }}
-Where={{ item.mount }}
-Type={{ item.fstype }}
-{% if item.opts is defined %}
-Options={{ item.opts }}
+Description=mount {{ item.where }}
+{% for (key, value) in (item.unit|default({})).iteritems() %}
+    {{- key }}={{ value }}
+{% endfor %}
+{% if item.require_network is defined and item.require_network %}
+Requires=network-online.target
+After=network-online.target
 {% endif %}
 
+[Mount]
+What={{ item.what }}
+Where={{ item.where }}
+Type={{ item.type }}
+Options={{ item.options | default(mount_systemd_default_mount_options) }}
+{% for (key, value) in (item.mount|default({})).iteritems() %}
+    {{- key }}={{ value }}
+{% endfor %}
+
 [Install]
+{% for (key, value) in (item.install|default({})).iteritems() %}
+    {{- key }}={{ value }}
+{% endfor %}
+{% if item.install is not defined or item.install.WantedBy is not defined %}
 WantedBy=default.target
+{% endif %}
+

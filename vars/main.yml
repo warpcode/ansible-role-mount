@@ -1,0 +1,5 @@
+---
+mount_systemd_mount_states:
+  reloaded: reload
+  restarted: reload-or-restart
+  started: reload-or-restart

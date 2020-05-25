@@ -1,106 +1,120 @@
 ---
-- name: Create cifs credentials path
-  become: yes
-  file:
-    path: "{{ mount_cifs_cred_path }}"
-    state: directory
+- name: Fail if mount is missing what parameters
+  fail:
+    msg: "Mount parameters [ type ] is missing for mount {{ item }}"
+  with_items: "{{ mount_systemd }}"
+  when:
+    - item.type is undefined
 
-- name: Create cifs credentials files
-  become: yes
-  template:
-    src: cifs_credentials.j2
-    dest: "{{ mount_cifs_cred_path }}/{{ item.name }}.cred"
-    mode: 0755
-    owner: root
-    group: root
-  with_items: "{{ mount_cifs_credentials }}"
+- name: Fail if mount is missing what parameters
+  fail:
+    msg: "Mount parameters [ what ] is missing for mount {{ item }}"
+  with_items: "{{ mount_systemd }}"
+  when:
+    - item.what is undefined
 
-- name: Install cifs utils
-  package:
-    name: cifs-utils
+- name: Fail if mount is missing where parameters
+  fail:
+    msg: "Mount parameters [ where ] is missing for mount {{ item }}"
+  with_items: "{{ mount_systemd }}"
+  when:
+    - item.where is undefined
 
-- name: Setup systemd Service for mountpoints
-  become: yes
-  template:
-    src: systemd_mount.j2
-    dest: "/etc/systemd/system/{{ item.mount| regex_replace('^\\/|\\/$', '') | replace('/', '-') }}.mount"
-    mode: 0755
-    owner: root
-    group: root
-  with_items: "{{ mount_automounts }}"
+- name: Fail if mount is swap type
+  fail:
+    msg: "Mount parameters [ type ] cannot be swap for mount {{ item }}"
+  with_items: "{{ mount_systemd }}"
+  when:
+    - item.type == 'swap'
 
-- name: Setup systemd Service for automount
-  become: yes
-  template:
-    src: systemd_automount.j2
-    dest: "/etc/systemd/system/{{ item.mount| regex_replace('^\\/|\\/$', '') | replace('/', '-') }}.automount"
-    mode: 0755
-    owner: root
-    group: root
-  with_items: "{{ mount_automounts }}"
+- include_tasks: systemd.yml
+  with_items: "{{ mount_systemd }}"
 
-- name: reload systemd
-  command: systemctl daemon-reload
-
-- name: Ensure automount service is started
-  become: yes
-  systemd:
-    name: "{{ item.mount| regex_replace('^\\/|\\/$', '') | replace('/', '-') }}.automount"
-    state: started
-    enabled: True
-  with_items: "{{ mount_automounts }}"
-
-- name: Ensure mount service is enabled and started
-  become: yes
-  systemd:
-    name: "{{ item.mount| regex_replace('^\\/|\\/$', '') | replace('/', '-') }}.mount"
-    state: started
-    enabled: True
-  with_items: "{{ mount_automounts }}"
-
-- name: Ensure mount dirs exist for fstab
-  become: yes
-  file:
-    path: "{{ item.mount }}"
-    state: directory
-    owner: "{{ item.owner | default(omit) }}"
-    group: "{{ item.group | default(omit) }}"
-    mode: "{{ item.mode | default(omit) }}"
+- include_tasks: fstab.yml
   with_items: "{{ mount_fstab }}"
 
-- name: Create fstab entries for devices
-  become: yes
-  mount:
-    name: "{{ item.mount }}"
-    src: "{{ item.device }}"
-    fstype: "{{ item.fstype }}"
-    passno: "{{ item.passno | default(omit) }}"
-    dump: "{{ item.dump | default(omit) }}"
-    opts: "{{ item.opts | default('') }}"
-    state: "{{ item.state | default('present') }}"
-  when: item.device_is_dir is not defined or item.device_is_dir == False
-  with_items: "{{ mount_fstab }}"
+# - name: Setup systemd Service for mountpoints
+#   become: yes
+#   template:
+#     src: systemd_mount.j2
+#     dest: "/etc/systemd/system/{{ item.mount| regex_replace('^\\/|\\/$', '') | replace('/', '-') }}.mount"
+#     mode: 0755
+#     owner: root
+#     group: root
+#   with_items: "{{ mount_automounts }}"
 
-- name: Ensure device directories exist
-  become: yes
-  file:
-    path: "{{ item.device }}"
-    state: directory
-    owner: "{{ item.owner | default(omit) }}"
-    group: "{{ item.group | default(omit) }}"
-    mode: "{{ item.mode | default(omit) }}"
-  when: item.device_is_dir | default(False)
-  with_items: "{{ mount_fstab }}"
+# - name: Setup systemd Service for automount
+#   become: yes
+#   template:
+#     src: systemd_automount.j2
+#     dest: "/etc/systemd/system/{{ item.mount| regex_replace('^\\/|\\/$', '') | replace('/', '-') }}.automount"
+#     mode: 0755
+#     owner: root
+#     group: root
+#   with_items: "{{ mount_automounts }}"
 
-- name: Create fstab entries for devices as directories
-  become: yes
-  mount:
-    name: "{{ item.mount }}"
-    src: "{{ item.device }}"
-    fstype: "{{ item.fstype }}"
-    passno: "{{ item.passno | default(omit) }}"
-    dump: "{{ item.dump | default(omit) }}"
-    opts: "{{ item.opts | default('') }}"
-    state: "{{ item.state | default('present') }}"
-  when: item.device_is_dir | default(False)
-  with_items: "{{ mount_fstab }}"
+# - name: reload systemd
+#   command: systemctl daemon-reload
+
+# - name: Ensure automount service is started
+#   become: yes
+#   systemd:
+#     name: "{{ item.mount| regex_replace('^\\/|\\/$', '') | replace('/', '-') }}.automount"
+#     state: started
+#     enabled: True
+#   with_items: "{{ mount_automounts }}"
+
+# - name: Ensure mount service is enabled and started
+#   become: yes
+#   systemd:
+#     name: "{{ item.mount| regex_replace('^\\/|\\/$', '') | replace('/', '-') }}.mount"
+#     state: started
+#     enabled: True
+#   with_items: "{{ mount_automounts }}"
+
+# - name: Ensure mount dirs exist for fstab
+#   become: yes
+#   file:
+#     path: "{{ item.mount }}"
+#     state: directory
+#     owner: "{{ item.owner | default(omit) }}"
+#     group: "{{ item.group | default(omit) }}"
+#     mode: "{{ item.mode | default(omit) }}"
+#   with_items: "{{ mount_fstab }}"
+
+# - name: Create fstab entries for devices
+#   become: yes
+#   mount:
+#     name: "{{ item.mount }}"
+#     src: "{{ item.device }}"
+#     fstype: "{{ item.fstype }}"
+#     passno: "{{ item.passno | default(omit) }}"
+#     dump: "{{ item.dump | default(omit) }}"
+#     opts: "{{ item.opts | default('') }}"
+#     state: "{{ item.state | default('present') }}"
+#   when: item.device_is_dir is not defined or item.device_is_dir == False
+#   with_items: "{{ mount_fstab }}"
+
+# - name: Ensure device directories exist
+#   become: yes
+#   file:
+#     path: "{{ item.device }}"
+#     state: directory
+#     owner: "{{ item.owner | default(omit) }}"
+#     group: "{{ item.group | default(omit) }}"
+#     mode: "{{ item.mode | default(omit) }}"
+#   when: item.device_is_dir | default(False)
+#   with_items: "{{ mount_fstab }}"
+
+# - name: Create fstab entries for devices as directories
+#   become: yes
+#   mount:
+#     name: "{{ item.mount }}"
+#     src: "{{ item.device }}"
+#     fstype: "{{ item.fstype }}"
+#     passno: "{{ item.passno | default(omit) }}"
+#     dump: "{{ item.dump | default(omit) }}"
+#     opts: "{{ item.opts | default('') }}"
+#     state: "{{ item.state | default('present') }}"
+#   when: item.device_is_dir | default(False)
+#   with_items: "{{ mount_fstab }}"

@@ -1,0 +1,33 @@
+---
+- name: Delete mount file(s)
+  file:
+    path: "/etc/systemd/system/{{ item.where.strip('/') | replace('/', '-') }}.mount"
+    state: "absent"
+  when:
+    - item.state | default("started") == 'absent'
+  with_items: "{{ mount_systemd }}"
+  listen: Remove mount
+
+- name: Delete automount file(s)
+  file:
+    path: "/etc/systemd/system/{{ item.where.strip('/') | replace('/', '-') }}.automount"
+    state: "absent"
+  when:
+    - item.state | default("started") == 'absent' or item.automount_state | default("absent") == 'absent'
+  with_items: "{{ mount_systemd }}"
+  listen: Remove mount
+
+# - name: Delete mount target(s)
+#   file:
+#     path: "{{ item.where }}"
+#     state: "absent"
+#   when:
+#     - item.state | default("started") == 'absent'
+#   with_items: "{{ mount_systemd }}"
+#   listen: Remove mount
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+    no_block: yes
+  listen: Remove mount
