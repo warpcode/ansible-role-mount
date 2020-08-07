@@ -27,6 +27,19 @@
   when:
     - item.type == 'swap'
 
+- name: Ensure mount dirs exist
+  become: yes
+  file:
+    path: "{{ item.where }}"
+    state: directory
+    owner: "{{ item.owner | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+    mode: "{{ item.mode | default('0755') }}"
+  when:
+    - item.where is defined
+    - item.state | default("started") != 'absent'
+  with_items: "{{ mount_systemd }}"
+
 - include_tasks: systemd.yml
   with_items: "{{ mount_systemd }}"
 
